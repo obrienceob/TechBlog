@@ -1,41 +1,47 @@
-const path = require('path');
+// dependencies
 const express = require('express');
+const path = require('path');
 const session = require('express-session');
+const SequelizeStore = require('connect-session-sequelize')(session.Store);
 const exphbs = require('express-handlebars');
-const routes = require('./controllers');
-const helpers = require('./utils/helpers');
 
 const sequelize = require('./config/connection');
-const SequelizeStore = require('connect-session-sequelize')(session.Store);
-
-const app = express();
-const PORT = process.env.PORT || 3001;
-
-// Set up Handlebars.js engine with custom helpers
+const routes = require('./controllers');
+const helpers = require('./utils/helpers');
 const hbs = exphbs.create({ helpers });
 
+const app = express();
+const PORT = process.env.PORT || 3002;
+
+// enable session and expires after 5 minutes with maxAge
 const sess = {
-  secret: 'Super secret secret',
-  cookie: {},
-  resave: false,
-  saveUninitialized: true,
-  store: new SequelizeStore({
-    db: sequelize
-  })
+    secret: 'secret super secret',
+    cookie: { maxAge: 300000 },
+    resave: false,
+    saveUninitialized: false,
+    store: new SequelizeStore({
+        db: sequelize
+    })
 };
 
-app.use(session(sess));
-
-// Inform Express.js on which template engine to use
-app.engine('handlebars', hbs.engine);
-app.set('view engine', 'handlebars');
-
+// middleware from express
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// set handlebars as view model
+app.engine('handlebars', hbs.engine);
+app.set('view engine', 'handlebars');
+
+// session middleware
+app.use(session(sess));
+
+// turn on routes
 app.use(routes);
 
+
+// connect the db and server
 sequelize.sync({ force: false }).then(() => {
-  app.listen(PORT, () => console.log('Now listening'));
+    app.listen(PORT, () => console.log
+        (`\n |-----------------------------------------------| \n |   Now listening on Port ${PORT}!   |\n |-----------------------------------------------| `));
 });

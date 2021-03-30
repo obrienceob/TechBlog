@@ -1,55 +1,44 @@
 const router = require('express').Router();
-const { User, Post, Vote, Comment } = require('../../models');
-const passportAuth = require('../../utils/auth');
-const passport = require('../../utils/passport');
-const LocalStrategy = require('passport-local').Strategy;
+const { User, Blog, Comment } = require('../../models');
 
-
-// GET /api/users
-// http://localhost:3001/api/users
-router.get('/',  (req, res) => {
-    // access our user model and run .findAll() method -- similar to SELECT * FROM users;
+// GET all users
+router.get('/', (req, res) => {
     User.findAll({
-        attributes: { exclude: ['[password']}
+        attributes: { exclude: ['password'] }
     })
-    .then(dbUserData => res.json(dbUserData))
-    .catch(err => {
-        console.log(err); 
-        res.status(500).json(err);
-    });
+        .then(userData => res.json(userData))
+        .catch(err => {
+            console.log(err);
+            res.status(500).json(err);
+        });
 });
 
-// GET /api/users/1
-// http://localhost:3001/api/users/1
+// GET a single user by ID
 router.get('/:id', (req, res) => {
     User.findOne({
-        attributes: { exclude: ['password'] },
+        attributes: {
+            exclude: ['password']
+        },
         where: {
-          id: req.params.id
+            id: req.params.id
         },
         include: [
-          {
-            model: Post,
-            attributes: ['id', 'post_text', 'created_at']
-          },
-          {
-            model: Comment,
-            attributes: ['id', 'comment_text', 'created_at'],
-          },
-          {
-            model: Post,
-            attributes: ['post_text'],
-            through: Vote,
-            as: 'voted_posts'
-          }
-       ]
-      })
-        .then(dbUserData => {
-            if (!dbUserData) {
-                res.status(404).json({ message: 'No user found with this id'});
+            {
+                model: Blog,
+                attributes: ['id', 'title', 'content', 'created_at']
+            },
+            {
+                model: Comment,
+                attributes: ['id', 'content', 'created_at'],
+            }
+        ]
+    })
+        .then(userData => {
+            if (!userData) {
+                res.status(404).json({ message: 'No developer found with that ID!' });
                 return;
             }
-            res.json(dbUserData);
+            res.json(userData);
         })
         .catch(err => {
             console.log(err);
@@ -57,75 +46,82 @@ router.get('/:id', (req, res) => {
         });
 });
 
-
-// POST /api/users
-// http://localhost:3001/api/users
+// POST - Create a user
 router.post('/', (req, res) => {
     User.create({
         username: req.body.username,
         email: req.body.email,
-        password: req.body.password,
-        github: req.body.github,
-        linkedin: req.body.linkedin,
-        bio: req.body.bio
+        password: req.body.password
     })
-    // prior to passport, we store to session, but with passport we must login to enable package
-    .then(dbUserData => {
-        res.redirect('/login')      
+        .then(userData => {
+            req.session.save(() => {
+                req.session.user_id = userData.id;
+                req.session.username = userData.username;
+                req.session.loggedIn = true;
+
+                res.json(userData);
+            });
+        })
+        .catch(err => {
+            console.log(err);
+            res.status(500).json(err);
         });
 });
 
+// User login
+router.post('/login', (req, res) => {
+    User.findOne({
+        where: {
+            username: req.body.username
+        }
+    })
+        .then(userData => {
+            if (!userData) {
+                res.json(400).json({ message: "That username doesn't exist!" });
+                return;
+            };
 
-// login using passport methods
-router.post('/login', passport.authenticate('local'), function(req, res) {
-    res.render('homepage', 
-    {loggedIn: req.session.passport.user.id});
+            const validPassword = userData.passwordConfirm(req.body.password);
+
+            if (!validPassword) {
+                res.status(400).json({ message: "That's not the right password..." });
+                return;
+            }
+
+            req.session.save(() => {
+                req.session.user_id = userData.id;
+                req.session.username = userData.username;
+                req.session.loggedIn = true;
+
+                res.json({ user: userData, message: `Hi ${userData.username}, you're logged in! Time to blog!!` });
+            });
+        });
 });
 
+// User logout
+router.post('/logout', (req, res) => {
+    if (req.session.loggedIn) {
+        req.session.destroy(() => {
+            res.status(204).end();
+        });
+    } else {
+        res.status(404).end();
+    }
+});
 
-// Logout using passport methods
-router.post('/logout', function(req, res,) {
-    req.logout();
-    res.redirect('/');
-  });
-
-
-// PUT /api/users/1 - similar to UPDATE 
-router.put('/:id', passportAuth, (req, res) => {
+// PUT - update a user
+router.put('/:id', (req, res) => {
     User.update(req.body, {
         individualHooks: true,
         where: {
             id: req.params.id
         }
     })
-    .then(dbUserData => {
-        if (!dbUserData[0]) {
-            res.status(404).json({ message: 'No user found with this id'});
-            return;
-        }
-        res.json(dbUserData);
-    })
-    .catch(err => {
-        console.log(err); 
-        res.status(500).json(err);
-    });
-
-});
-
-
-// DELETE /api/users/1
-router.delete('/:id', passportAuth, (req, res) => {
-    User.destroy({
-        where: {
-            id: req.params.id
-        }
-    })
-        .then(dbUserData => {
-            if (!dbUserData) {
-                res.status(404).json({ message: 'No user found with this id'});
-                return;
+        .then(userData => {
+            if (!userData) {
+                res.status(400).json({ message: 'No developer found with that ID!' });
             }
-            res.json(dbUserData);
+            res.json(userData);
         })
         .catch(err => {
             console.log(err);
@@ -133,5 +129,24 @@ router.delete('/:id', passportAuth, (req, res) => {
         });
 });
 
+// DELETE - delete a user
+router.delete('/:id', (req, res) => {
+    User.destroy({
+        where: {
+            id: req.params.id
+        }
+    })
+        .then(userData => {
+            if (!userData) {
+                res.status(404).json({ message: 'No developer found with that ID!' });
+                return;
+            }
+            res.json(userData);
+        })
+        .catch(err => {
+            console.log(err);
+            res.status(500).json(err);
+        });
+});
 
 module.exports = router;
