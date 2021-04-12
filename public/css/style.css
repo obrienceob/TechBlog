@@ -80,10 +80,6 @@
     align-items: center;
   }
   
-  main {
-    /* flex: 1; */
-    padding: 2% 4%;
-  }
   
   .create-link {
       width: 75%;
@@ -190,10 +186,4 @@
     margin-bottom: 5%;
   }
   
-  footer {
-    border-top: 1px solid #ccc;
-    display: flex;
-    justify-content: center;
-    padding: 1%;
-    font-size: 110%;
-  }
+ 

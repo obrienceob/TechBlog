@@ -1,7 +1,6 @@
 {
   "name": "techblog",
   "version": "1.0.0",
-  "description": "",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -28,5 +27,7 @@
   "bugs": {
     "url": "https://github.com/obrienceob/TechBlog/issues"
   },
-  "homepage": "https://github.com/obrienceob/TechBlog#readme"
+  "homepage": "https://github.com/obrienceob/TechBlog#readme",
+  "devDependencies": {},
+  "description": ""
 }
