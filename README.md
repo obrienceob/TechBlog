@@ -16,9 +16,6 @@ Here is a image of the deployed blog site:
 * [Installation](#installation)
 * [Usage](#usage)
 * [License](#license)
-* [Contributing](#contributing)
-* [Tests](#tests)
-* [Questions](#questions)
 
 ## Installation
 To install dependencies, run the following:
